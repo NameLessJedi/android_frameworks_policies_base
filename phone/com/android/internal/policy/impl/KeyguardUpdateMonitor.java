@@ -68,6 +68,8 @@ public class KeyguardUpdateMonitor {
 
     private IccCard.State mSimState = IccCard.State.READY;
 
+    private boolean mLockAlwaysBattery;
+
     private boolean mKeyguardBypassEnabled;
 
     private boolean mDevicePluggedIn;
@@ -140,6 +142,9 @@ public class KeyguardUpdateMonitor {
 
     public KeyguardUpdateMonitor(Context context) {
         mContext = context;
+
+        mLockAlwaysBattery = (Settings.System.getInt(mContext.getContentResolver(),
+                Settings.System.LOCKSCREEN_ALWAYS_BATTERY, 0) == 1);
 
         mHandler = new Handler() {
             @Override
@@ -284,7 +289,6 @@ public class KeyguardUpdateMonitor {
      * Handle {@link #MSG_BATTERY_UPDATE}
      */
     private void handleBatteryUpdate(int pluggedInStatus, int batteryLevel) {
-        if (DEBUG) Log.d(TAG, "handleBatteryUpdate");
         final boolean pluggedIn = isPluggedIn(pluggedInStatus);
 
         if (isBatteryUpdateInteresting(pluggedIn, batteryLevel)) {
@@ -337,6 +341,9 @@ public class KeyguardUpdateMonitor {
     }
 
     private boolean isBatteryUpdateInteresting(boolean pluggedIn, int batteryLevel) {
+        if (mLockAlwaysBattery && batteryLevel != mBatteryLevel) {
+            return true;
+        }
         // change in plug is always interesting
         if (mDevicePluggedIn != pluggedIn) {
             return true;
@@ -430,7 +437,7 @@ public class KeyguardUpdateMonitor {
          * Called when the phone state changes. String will be one of:
          * {@link TelephonyManager#EXTRA_STATE_IDLE}
          * {@link TelephonyManager@EXTRA_STATE_RINGING}
-         * {@link TelephonyManager#EXTRA_STATE_OFFHOOK
+         * {@link TelephonyManager#EXTRA_STATE_OFFHOOK}
          */
         void onPhoneStateChanged(String newState);
     }
@@ -493,7 +500,7 @@ public class KeyguardUpdateMonitor {
     }
 
     public boolean shouldShowBatteryInfo() {
-        return mDevicePluggedIn || mBatteryLevel < LOW_BATTERY_THRESHOLD;
+        return mLockAlwaysBattery || mDevicePluggedIn || mBatteryLevel < LOW_BATTERY_THRESHOLD;
     }
 
     public CharSequence getTelephonyPlmn() {
